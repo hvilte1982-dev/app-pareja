@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#6366f1">
+    <title>HomeHub | Firebase Sync</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.6.0/firebase-database.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: hsl(250, 60%, 60%);
+            --primary-light: hsl(250, 60%, 85%);
+            --primary-dark: hsl(250, 60%, 40%);
+            --secondary: hsl(180, 50%, 45%);
+            --accent: hsl(30, 90%, 60%);
+            --success: hsl(145, 50%, 50%);
+            --danger: hsl(0, 70%, 60%);
+            --warning: hsl(45, 90%, 60%);
+            --bg-main: hsl(220, 20%, 97%);
+            --bg-card: hsl(0, 0%, 100%);
+            --text-main: hsl(220, 15%, 15%);
+            --text-muted: hsl(220, 10%, 45%);
+            --border: hsl(220, 15%, 90%);
+            --glass-bg: hsla(0, 0%, 100%, 0.7);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            --nav-height: 70px;
+            --header-height: 85px;
+            --radius-md: 18px;
+            --radius-lg: 30px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Outfit', sans-serif; background-color: #f5f5f5; color: var(--text-main); min-height: 100vh; overflow-x: hidden; }
+        #app { display: flex; flex-direction: column; height: 100vh; width: 100%; max-width: 500px; margin: 0 auto; position: relative; background: var(--bg-main); }
+        .app-header { height: var(--header-height); padding: 15px; display: flex; align-items: center; justify-content: space-between; background: var(--glass-bg); backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid var(--border); }
+        .header-text h1 { font-size: 1.1rem; font-weight: 700; }
+        .header-text p { font-size: 0.75rem; color: var(--text-muted); }
+        .icon-btn { width: 34px; height: 34px; border-radius: 10px; border: none; background: var(--bg-card); color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow); }
+        #main { flex: 1; overflow-y: auto; padding: 15px; padding-bottom: calc(var(--nav-height) + 30px); }
+        .bottom-nav { height: calc(var(--nav-height) + env(safe-area-inset-bottom)); background: var(--glass-bg); backdrop-filter: blur(25px); display: flex; justify-content: space-around; align-items: center; position: fixed; bottom: 0; left: 0; right: 0; max-width: 500px; margin: 0 auto; border-top: 1px solid var(--border); z-index: 1000; padding: 0 5px env(safe-area-inset-bottom) 5px; }
+        .nav-item { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: none; border: none; color: var(--text-muted); font-size: 0.55rem; font-weight: 700; cursor: pointer; }
+        .nav-item i { font-size: 1.1rem; }
+        .nav-item.active { color: var(--primary); }
+        .dash-card { background: var(--bg-card); padding: 16px; border-radius: var(--radius-lg); box-shadow: var(--shadow); margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border); }
+        .card-icon { width: 34px; height: 34px; border-radius: 8px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+        .list-item { background: var(--bg-card); padding: 12px; border-radius: 18px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+        .custom-checkbox { width: 20px; height: 20px; border: 2px solid var(--primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.75rem; cursor: pointer; }
+        .custom-checkbox.checked { background: var(--primary); color: white; }
+        .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 20px; text-align: center; padding: 20px; }
+        .login-screen h1 { font-size: 2rem; color: var(--primary); margin-bottom: 10px; }
+        .login-screen input { padding: 12px; border: 1px solid var(--border); border-radius: 6px; width: 100%; max-width: 300px; font-size: 1rem; }
+        .login-screen button { background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 1rem; width: 100%; max-width: 300px; }
+        .sync-status { position: fixed; top: 15px; right: 15px; width: 10px; height: 10px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px rgba(76, 175, 80, 0.5); z-index: 999; }
+        .sync-status.offline { background: var(--danger); box-shadow: 0 0 6px rgba(244, 67, 54, 0.5); }
+        .input-form { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+        .input-form input { flex: 1; min-width: 120px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
+        .input-form select { flex: 1; min-width: 100px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; }
+        .input-form button { background: var(--primary); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .empty-state { text-align: center; color: var(--text-muted); padding: 20px; font-style: italic; }
+        .chips-scroll { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 15px; padding-bottom: 8px; }
+        .chip { padding: 8px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); cursor: pointer; white-space: nowrap; font-size: 0.8rem; }
+        .chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+    </style>
+</head>
+<body>
+    <div id="sync-status" class="sync-status"></div>
+    
+    <div id="app" style="display:none;">
+        <header class="app-header">
+            <div class="header-text">
+                <h1>HomeHub</h1>
+                <p id="user-info">Usuario</p>
+            </div>
+            <button onclick="logout()" class="icon-btn" title="Salir"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </header>
+
+        <div id="main"></div>
+
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-view="dashboard"><i class="fa-solid fa-house"></i><span>Inicio</span></button>
+            <button class="nav-item" data-view="shopping"><i class="fa-solid fa-cart-shopping"></i><span>Compras</span></button>
+            <button class="nav-item" data-view="tasks"><i class="fa-solid fa-list-check"></i><span>Tareas</span></button>
+            <button class="nav-item" data-view="plants"><i class="fa-solid fa-leaf"></i><span>Plantas</span></button>
+            <button class="nav-item" data-view="expenses"><i class="fa-solid fa-chart-pie"></i><span>Gastos</span></button>
+            <button class="nav-item" data-view="more"><i class="fa-solid fa-ellipsis"></i><span>Más</span></button>
+        </nav>
+    </div>
+
+    <div id="login" class="login-screen">
+        <h1>HomeHub</h1>
+        <p>Organización del hogar para parejas</p>
+        <input id="name-input" type="text" placeholder="Tu nombre" />
+        <button onclick="login()">Entrar</button>
+        <p style="font-size:0.75rem;color:var(--text-muted);margin-top:20px;">Ambos escriben el MISMO nombre para sincronizar</p>
+    </div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyALiuMZAX9yvdR_xkqPNBHgGfB9GqvzGIE",
+            authDomain: "homehub-pareja.firebaseapp.com",
+            databaseURL: "https://homehub-pareja-default-rtdb.firebaseio.com",
+            projectId: "homehub-pareja",
+            storageBucket: "homehub-pareja.firebasestorage.app",
+            messagingSenderId: "477100178463",
+            appId: "1:477100178463:web:39b1a64ea8b07c76b0292a"
+        };
+
+        // Variables globales
+        let db = null;
+        let userName = null;
+        let currentView = 'dashboard';
+        let state = {
+            shopping: {},
+            tasks: {},
+            plants: {},
+            expenses: {},
+            shoppingFilter: 'todos'
+        };
+
+        // Iniciar Firebase
+        function initFirebase() {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            setupRealtimeListeners();
+        }
+
+        // Listeners Realtime
+        function setupRealtimeListeners() {
+            if (!userName) return;
+
+            // Shopping
+            db.ref(`shared/shopping`).on('value', (snap) => {
+                state.shopping = snap.val() || {};
+                if (currentView === 'dashboard' || currentView === 'shopping') render();
+                updateSync(true);
+            });
+
+            // Tasks
+            db.ref(`shared/tasks`).on('value', (snap) => {
+                state.tasks = snap.val() || {};
+                if (currentView === 'dashboard' || currentView === 'tasks') render();
+                updateSync(true);
+            });
+
+            // Plants
+            db.ref(`shared/plants`).on('value', (snap) => {
+                state.plants = snap.val() || {};
+                if (currentView === 'dashboard' || currentView === 'plants') render();
+                updateSync(true);
+            });
+
+            // Expenses
+            db.ref(`shared/expenses`).on('value', (snap) => {
+                state.expenses = snap.val() || {};
+                if (currentView === 'dashboard' || currentView === 'expenses') render();
+                updateSync(true);
+            });
+
+            // Estado de conexión
+            db.ref('.info/connected').on('value', (snap) => {
+                document.getElementById('sync-status').classList.toggle('offline', !snap.val());
+            });
+        }
+
+        // Login
+        function login() {
+            const name = document.getElementById('name-input').value.trim();
+            if (!name) return alert('Escribe tu nombre');
+            
+            userName = name;
+            localStorage.setItem('homehub-user', name);
+            
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
+            document.getElementById('user-info').textContent = name;
+            
+            initFirebase();
+            setupNav();
+            render();
+        }
+
+        function logout() {
+            userName = null;
+            localStorage.removeItem('homehub-user');
+            document.getElementById('app').style.display = 'none';
+            document.getElementById('login').style.display = 'flex';
+            document.getElementById('name-input').value = '';
+            document.getElementById('name-input').focus();
+        }
+
+        function updateSync(connected) {
+            const status = document.getElementById('sync-status');
+            if (connected) status.classList.remove('offline');
+            else status.classList.add('offline');
+        }
+
+        // Navegación
+        function setupNav() {
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentView = btn.dataset.view;
+                    render();
+                });
+            });
+        }
+
+        // CRUD Shopping
+        function addShopping() {
+            const name = prompt('Artículo:');
+            if (!name) return;
+            const cat = prompt('Categoría (Almacén/Limpieza/Heladera/Otros):') || 'Otros';
+            const id = Date.now().toString();
+            db.ref(`shared/shopping/${id}`).set({name, cat, bought: false});
+        }
+
+        function toggleShopping(id) {
+            const item = state.shopping[id];
+            if (item) db.ref(`shared/shopping/${id}`).update({bought: !item.bought});
+        }
+
+        function delShopping(id) {
+            db.ref(`shared/shopping/${id}`).remove();
+        }
+
+        // CRUD Tasks
+        function addTask() {
+            const title = prompt('Tarea:');
+            if (!title) return;
+            const date = prompt('Fecha (YYYY-MM-DD):');
+            const time = prompt('Hora (HH:MM):');
+            const id = Date.now().toString();
+            db.ref(`shared/tasks/${id}`).set({title, date, time, status: 'pendiente'});
+        }
+
+        function toggleTask(id) {
+            const task = state.tasks[id];
+            if (task) db.ref(`shared/tasks/${id}`).update({status: task.status === 'pendiente' ? 'finalizado' : 'pendiente'});
+        }
+
+        function delTask(id) {
+            db.ref(`shared/tasks/${id}`).remove();
+        }
+
+        // CRUD Plants
+        function addPlant() {
+            const name = prompt('Planta:');
+            if (!name) return;
+            const frequency = prompt('Frecuencia de riego (días):') || '3';
+            const id = Date.now().toString();
+            db.ref(`shared/plants/${id}`).set({name, frequency: parseInt(frequency), lastWatered: new Date().toISOString()});
+        }
+
+        function waterPlant(id) {
+            db.ref(`shared/plants/${id}`).update({lastWatered: new Date().toISOString()});
+        }
+
+        function delPlant(id) {
+            db.ref(`shared/plants/${id}`).remove();
+        }
+
+        // CRUD Expenses
+        function addExpense() {
+            const desc = prompt('Descripción:');
+            if (!desc) return;
+            const amount = prompt('Monto:');
+            const cat = prompt('Categoría (Comida/Compras/Casa/Otro):') || 'Otro';
+            const id = Date.now().toString();
+            db.ref(`shared/expenses/${id}`).set({desc, amount: parseFloat(amount), cat, date: new Date().toISOString()});
+        }
+
+        function delExpense(id) {
+            db.ref(`shared/expenses/${id}`).remove();
+        }
+
+        // Render
+        function render() {
+            const main = document.getElementById('main');
+            main.innerHTML = '';
+
+            if (currentView === 'dashboard') renderDashboard(main);
+            else if (currentView === 'shopping') renderShopping(main);
+            else if (currentView === 'tasks') renderTasks(main);
+            else if (currentView === 'plants') renderPlants(main);
+            else if (currentView === 'expenses') renderExpenses(main);
+            else if (currentView === 'more') renderMore(main);
+        }
+
+        function renderDashboard(main) {
+            const shoppingCount = Object.values(state.shopping).filter(s => !s.bought).length;
+            const tasksCount = Object.values(state.tasks).filter(t => t.status === 'pendiente').length;
+            const plantsNeedWater = Object.values(state.plants).length;
+            const totalExpenses = Object.values(state.expenses).reduce((s, e) => s + e.amount, 0);
+
+            main.innerHTML = `
+                <h2 style="margin-bottom:20px;">Dashboard</h2>
+                <div class="dash-card" onclick="currentView='shopping'; render()">
+                    <div style="display:flex; gap:12px;">
+                        <div class="card-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+                        <div><h3>Compras</h3><p>${shoppingCount} ítems</p></div>
+                    </div>
+                </div>
+                <div class="dash-card" onclick="currentView='tasks'; render()">
+                    <div style="display:flex; gap:12px;">
+                        <div class="card-icon" style="background:hsla(145,50%,90%); color:var(--success)"><i class="fa-solid fa-list-check"></i></div>
+                        <div><h3>Tareas</h3><p>${tasksCount} pendientes</p></div>
+                    </div>
+                </div>
+                <div class="dash-card" onclick="currentView='plants'; render()">
+                    <div style="display:flex; gap:12px;">
+                        <div class="card-icon" style="background:hsla(145,50%,90%); color:var(--success)"><i class="fa-solid fa-leaf"></i></div>
+                        <div><h3>Plantas</h3><p>${plantsNeedWater} plantas</p></div>
+                    </div>
+                </div>
+                <div class="dash-card" onclick="currentView='expenses'; render()" style="background:linear-gradient(135deg, var(--primary), var(--primary-dark)); color:white;">
+                    <div><h3>Gastos Totales</h3><p style="font-size:1.5rem; font-weight:700;">$${totalExpenses.toFixed(2)}</p></div>
+                </div>
+            `;
+        }
+
+        function renderShopping(main) {
+            const items = Object.entries(state.shopping);
+            const cats = [...new Set(items.map(([_, i]) => i.cat))];
+
+            main.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                    <h2>🛒 Compras</h2>
+                    <button class="icon-btn" onclick="addShopping()"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div class="chips-scroll">
+                    <button class="chip ${state.shoppingFilter === 'todos' ? 'active' : ''}" onclick="state.shoppingFilter='todos'; render()">Todos</button>
+                    ${cats.map(cat => `<button class="chip ${state.shoppingFilter === cat ? 'active' : ''}" onclick="state.shoppingFilter='${cat}'; render()">${cat}</button>`).join('')}
+                </div>
+                ${items.filter(([_, i]) => state.shoppingFilter === 'todos' || i.cat === state.shoppingFilter).map(([id, item]) => `
+                    <div class="list-item">
+                        <div style="display:flex; align-items:center; gap:12px;" onclick="toggleShopping('${id}')">
+                            <div class="custom-checkbox ${item.bought ? 'checked' : ''}">${item.bought ? '✓' : ''}</div>
+                            <div><span>${item.name}</span><br><span style="font-size:0.75rem; color:var(--text-muted);">${item.cat}</span></div>
+                        </div>
+                        <button class="icon-btn" style="color:var(--danger)" onclick="delShopping('${id}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `).join('') || '<p class="empty-state">Sin compras</p>'}
+            `;
+        }
+
+        function renderTasks(main) {
+            const tasks = Object.entries(state.tasks);
+            main.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                    <h2>📋 Tareas</h2>
+                    <button class="icon-btn" onclick="addTask()"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                ${tasks.map(([id, task]) => `
+                    <div class="dash-card" style="border-left:5px solid ${task.status === 'finalizado' ? 'var(--success)' : 'var(--primary)'}">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <h3>${task.title}</h3>
+                                <p style="font-size:0.8rem; color:var(--text-muted);">${task.date} ${task.time || ''}</p>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button class="icon-btn" onclick="toggleTask('${id}')"><i class="fa-solid fa-check"></i></button>
+                                <button class="icon-btn" style="color:var(--danger)" onclick="delTask('${id}')"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('') || '<p class="empty-state">Sin tareas</p>'}
+            `;
+        }
+
+        function renderPlants(main) {
+            const plants = Object.entries(state.plants);
+            main.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                    <h2>🌱 Plantas</h2>
+                    <button class="icon-btn" onclick="addPlant()"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                ${plants.map(([id, plant]) => `
+                    <div class="list-item">
+                        <div>
+                            <strong>${plant.name}</strong>
+                            <p style="font-size:0.75rem; color:var(--text-muted);">Riego cada ${plant.frequency} días</p>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="icon-btn" onclick="waterPlant('${id}')"><i class="fa-solid fa-droplet"></i></button>
+                            <button class="icon-btn" style="color:var(--danger)" onclick="delPlant('${id}')"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `).join('') || '<p class="empty-state">Sin plantas</p>'}
+            `;
+        }
+
+        function renderExpenses(main) {
+            const expenses = Object.entries(state.expenses);
+            const total = expenses.reduce((s, [_, e]) => s + e.amount, 0);
+            const byCategory = {};
+            expenses.forEach(([_, e]) => { byCategory[e.cat] = (byCategory[e.cat] || 0) + e.amount; });
+
+            main.innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                    <h2>💰 Gastos</h2>
+                    <button class="icon-btn" onclick="addExpense()"><i class="fa-solid fa-plus"></i></button>
+                </div>
+                <div class="dash-card" style="background:linear-gradient(135deg, var(--primary), var(--primary-dark)); color:white;">
+                    <div><h3>Total</h3><p style="font-size:2rem; font-weight:700;">$${total.toFixed(2)}</p></div>
+                </div>
+                <h4 style="margin:15px 0 10px;">Por Categoría</h4>
+                ${Object.entries(byCategory).map(([cat, amt]) => `
+                    <div style="display:flex; justify-content:space-between; padding:10px; background:var(--bg-card); border-radius:8px; margin-bottom:8px;">
+                        <span>${cat}</span>
+                        <strong>$${amt.toFixed(2)}</strong>
+                    </div>
+                `).join('')}
+                <h4 style="margin:15px 0 10px;">Transacciones</h4>
+                ${expenses.map(([id, exp]) => `
+                    <div class="list-item">
+                        <div><strong>${exp.desc}</strong><br><small>${new Date(exp.date).toLocaleDateString()}</small></div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <strong>$${exp.amount.toFixed(2)}</strong>
+                            <button class="icon-btn" style="color:var(--danger); width:28px; height:28px;" onclick="delExpense('${id}')"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                `).join('') || '<p class="empty-state">Sin gastos</p>'}
+            `;
+        }
+
+        function renderMore(main) {
+            main.innerHTML = `
+                <h2>Más opciones</h2>
+                <div class="dash-card">
+                    <p style="color:var(--text-muted);">Sistema de sincronización en tiempo real con Firebase.</p>
+                    <p style="font-size:0.75rem; color:var(--text-muted); margin-top:10px;">Usuario: ${userName}</p>
+                    <button class="icon-btn" onclick="logout()" style="width:100%; margin-top:15px; background:var(--danger); color:white;">Salir</button>
+                </div>
+            `;
+        }
+
+        // Init
+        window.onload = function() {
+            const saved = localStorage.getItem('homehub-user');
+            if (saved) {
+                userName = saved;
+                document.getElementById('login').style.display = 'none';
+                document.getElementById('app').style.display = 'flex';
+                document.getElementById('user-info').textContent = saved;
+                initFirebase();
+                setupNav();
+                render();
+            } else {
+                document.getElementById('name-input').focus();
+            }
+        };
+    </script>
+</body>
+</html>
